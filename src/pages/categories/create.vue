@@ -1,40 +1,22 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
-interface CategoryApiItem {
-  id: number
-  name: string
-  description: string
-  image_url: string
-  created_at: string
-}
-
-interface ProductCreatedResponse {
-  id: number
-  name: string
-  description: string
-  category: string
-  price: number
-  stock: number
-  image_url: string
-  created_at: string
-}
-
-const PRODUCT_API_URL = 'http://localhost:8000/products/'
 const CATEGORY_API_URL = 'http://localhost:8000/categories/'
 
-const categoryOptions = ref<string[]>([])
-const categoryLoading = ref(false)
+interface CategoryCreatedResponse {
+  id: number
+  name: string
+  description: string
+  image_url: string
+  created_at: string
+}
 
 const form = reactive({
   name: '',
   description: '',
-  category: '',
-  price: 0,
-  stock: 0,
 })
 
 const loading = ref(false)
@@ -46,9 +28,6 @@ const imagePreviewUrl = ref('')
 function resetForm() {
   form.name = ''
   form.description = ''
-  form.category = categoryOptions.value[0] || ''
-  form.price = 0
-  form.stock = 0
   errorMessage.value = ''
   successMessage.value = ''
   imageFile.value = null
@@ -62,44 +41,14 @@ function onImageChange(files: File | File[] | null) {
   imagePreviewUrl.value = selectedFile ? URL.createObjectURL(selectedFile) : ''
 }
 
-async function fetchCategories() {
-  categoryLoading.value = true
-
-  try {
-    const response = await fetch(CATEGORY_API_URL, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-    })
-
-    if (!response.ok)
-      throw new Error(`Failed to fetch categories: ${response.status}`)
-
-    const data = await response.json()
-    const categories = Array.isArray(data) ? data : []
-
-    categoryOptions.value = categories.map((category: CategoryApiItem) => category.name)
-
-    if (!form.category && categoryOptions.value.length > 0)
-      form.category = categoryOptions.value[0]
-  }
-  catch (error) {
-    categoryOptions.value = []
-    if (!errorMessage.value)
-      errorMessage.value = error instanceof Error ? error.message : 'Failed to fetch categories'
-  }
-  finally {
-    categoryLoading.value = false
-  }
-}
-
 async function submitForm() {
   loading.value = true
   errorMessage.value = ''
   successMessage.value = ''
 
   try {
-    // Step 1: Create product with JSON
-    const response = await fetch(PRODUCT_API_URL, {
+    // Step 1: Create category with JSON
+    const response = await fetch(CATEGORY_API_URL, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
@@ -108,9 +57,6 @@ async function submitForm() {
       body: JSON.stringify({
         name: form.name,
         description: form.description,
-        category: form.category,
-        price: Number(form.price),
-        stock: Number(form.stock),
         image_url: '',
       }),
     })
@@ -121,7 +67,7 @@ async function submitForm() {
       throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail))
     }
 
-    const created: ProductCreatedResponse = await response.json()
+    const created: CategoryCreatedResponse = await response.json()
 
     // Step 2: Upload image separately if provided
     if (imageFile.value) {
@@ -129,7 +75,7 @@ async function submitForm() {
 
       imageFormData.append('image', imageFile.value, imageFile.value.name)
 
-      const imageResponse = await fetch(`http://localhost:8000/products/${created.id}/image`, {
+      const imageResponse = await fetch(`http://localhost:8000/categories/${created.id}/image`, {
         method: 'PUT',
         headers: { Accept: 'application/json' },
         body: imageFormData,
@@ -142,21 +88,17 @@ async function submitForm() {
       }
     }
 
-    successMessage.value = 'Product created successfully.'
+    successMessage.value = 'Category created successfully.'
     resetForm()
-    router.push('/product')
+    router.push('/categories')
   }
   catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to create product'
+    errorMessage.value = error instanceof Error ? error.message : 'Failed to create category'
   }
   finally {
     loading.value = false
   }
 }
-
-onMounted(() => {
-  fetchCategories()
-})
 </script>
 
 <template>
@@ -164,10 +106,10 @@ onMounted(() => {
     <div class="page-header">
       <div>
         <h1 class="page-title">
-          Create Product
+          Create Category
         </h1>
         <p class="page-subtitle">
-          Submit a new product to the API
+          Submit a new category to the API
         </p>
       </div>
     </div>
@@ -196,52 +138,13 @@ onMounted(() => {
                 Reset
               </VBtn>
             </VCol>
-            <VCol
-              cols="12"
-              md="6"
-            >
+
+            <VCol cols="12">
               <VTextField
                 v-model="form.name"
                 label="Name"
-                placeholder="Name"
+                placeholder="fruit"
                 required
-              />
-            </VCol>
-
-            <VCol
-              cols="12"
-              md="6"
-            >
-              <VSelect
-                v-model="form.category"
-                label="Category"
-                :items="categoryOptions"
-                :loading="categoryLoading"
-                :disabled="categoryLoading || categoryOptions.length === 0"
-              />
-            </VCol>
-
-            <VCol
-              cols="12"
-              md="6"
-            >
-              <VTextField
-                v-model.number="form.price"
-                label="Price"
-                type="number"
-                min="0"
-              />
-            </VCol>
-
-            <VCol
-              cols="12"
-              md="6"
-            >
-              <VTextField
-                v-model.number="form.stock"
-                label="Stock"
-                type="number"
-                min="0"
               />
             </VCol>
 
@@ -249,14 +152,14 @@ onMounted(() => {
               <VTextarea
                 v-model="form.description"
                 label="Description"
-                placeholder="Description"
+                placeholder="Fresh fruits and seasonal produce"
                 rows="3"
               />
             </VCol>
 
             <VCol cols="12">
               <VFileInput
-                label="Product Image"
+                label="Category Image"
                 accept="image/*"
                 prepend-icon="bx-image-add"
                 show-size

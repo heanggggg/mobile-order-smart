@@ -30,6 +30,9 @@ const headers = [
 const products = ref<ProductApiItem[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
+const deleteDialog = ref(false)
+const deleteTarget = ref<{ id: number, name: string } | null>(null)
+const deleting = ref(false)
 
 const tableItems = computed(() => {
   return products.value.map(product => ({
@@ -139,6 +142,46 @@ function handleEdit(item: { id: number }) {
   router.push(`/product/edit/${item.id}`)
 }
 
+async function handleDelete(item: { id: number, name: string }) {
+  deleteTarget.value = item
+  deleteDialog.value = true
+}
+
+function cancelDelete() {
+  deleteDialog.value = false
+  deleteTarget.value = null
+}
+
+async function confirmDelete() {
+  if (!deleteTarget.value)
+    return
+
+  deleting.value = true
+
+  try {
+    const response = await fetch(`${API_URL}${deleteTarget.value.id}/`, {
+      method: 'DELETE',
+      headers: {
+        Accept: 'application/json',
+      },
+    })
+
+    if (!response.ok)
+      throw new Error(`Delete failed with status ${response.status}`)
+
+    deleteDialog.value = false
+    deleteTarget.value = null
+    await fetchProducts()
+  }
+  catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'Failed to delete product'
+    deleteDialog.value = false
+  }
+  finally {
+    deleting.value = false
+  }
+}
+
 onMounted(fetchProducts)
 </script>
 
@@ -176,7 +219,58 @@ onMounted(fetchProducts)
     create-route="/product/create"
     @view="handleView"
     @edit="handleEdit"
+    @delete="handleDelete"
   />
+
+  <Teleport to="body">
+    <Transition name="dialog">
+      <div
+        v-if="deleteDialog"
+        class="dialog-overlay"
+        @click.self="cancelDelete"
+      >
+        <div class="dialog-box">
+          <div class="dialog-icon-wrap">
+            <div class="dialog-icon">
+              <Icon icon="mdi:trash-can-outline" />
+            </div>
+          </div>
+
+          <h2 class="dialog-title">
+            Delete Product
+          </h2>
+
+          <p class="dialog-message">
+            Are you sure you want to delete
+            <span class="dialog-name">"{{ deleteTarget?.name }}"</span>?
+            This action cannot be undone.
+          </p>
+
+          <div class="dialog-actions">
+            <button
+              class="btn-cancel"
+              :disabled="deleting"
+              @click="cancelDelete"
+            >
+              Cancel
+            </button>
+            <button
+              class="btn-delete"
+              :disabled="deleting"
+              @click="confirmDelete"
+            >
+              <Icon
+                v-if="deleting"
+                icon="mdi:loading"
+                class="spin"
+              />
+              <span>{{ deleting ? 'Deleting...' : 'Delete' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -210,6 +304,134 @@ onMounted(fetchProducts)
   font-size: 26px;
   font-weight: bold;
   margin-block-start: 10px;
+}
+
+.dialog-overlay {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 40%);
+  inset: 0;
+}
+
+.dialog-box {
+  border-radius: 20px;
+  background: white;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 18%);
+  inline-size: 100%;
+  max-inline-size: 400px;
+  padding-block: 36px 28px;
+  padding-inline: 32px;
+  text-align: center;
+}
+
+.dialog-icon-wrap {
+  display: flex;
+  justify-content: center;
+  margin-block-end: 18px;
+}
+
+.dialog-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #fef2f2;
+  block-size: 64px;
+  color: #ef4444;
+  font-size: 32px;
+  inline-size: 64px;
+}
+
+.dialog-title {
+  color: #111827;
+  font-size: 20px;
+  font-weight: 700;
+  margin-block: 0 10px;
+  margin-inline: 0;
+}
+
+.dialog-message {
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-block: 0 28px;
+  margin-inline: 0;
+}
+
+.dialog-name {
+  color: #374151;
+  font-weight: 600;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-cancel,
+.btn-delete {
+  flex: 1;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  padding-block: 10px;
+  padding-inline: 16px;
+  transition: all 0.15s ease;
+}
+
+.btn-cancel {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.btn-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ef4444;
+  color: white;
+  gap: 6px;
+}
+
+.btn-delete:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.btn-cancel:disabled,
+.btn-delete:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.dialog-enter-active,
+.dialog-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.dialog-enter-active .dialog-box,
+.dialog-leave-active .dialog-box {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.dialog-enter-from,
+.dialog-leave-to {
+  opacity: 0;
+}
+
+.dialog-enter-from .dialog-box,
+.dialog-leave-to .dialog-box {
+  opacity: 0;
+  transform: scale(0.95) translateY(8px);
 }
 
 .error-banner {

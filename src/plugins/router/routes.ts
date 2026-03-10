@@ -25,6 +25,22 @@ export const routes = [
         component: () => import('@/pages/product/edit/[id].vue'),
       },
       {
+        path: 'categories',
+        component: () => import('@/pages/categories/index.vue'),
+      },
+      {
+        path: 'categories/create',
+        component: () => import('@/pages/categories/create.vue'),
+      },
+      {
+        path: 'categories/view/:id',
+        component: () => import('@/pages/categories/view/[id].vue'),
+      },
+      {
+        path: 'categories/edit/:id',
+        component: () => import('@/pages/categories/edit/[id].vue'),
+      },
+      {
         path: 'account-settings',
         component: () => import('@/pages/account-settings.vue'),
       },
