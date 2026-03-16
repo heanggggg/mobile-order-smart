@@ -84,19 +84,6 @@ const router = useRouter()
 const search = ref('')
 const currentPage = ref(1)
 
-function extractItemsFromHeaders(headers) {
-  const row = headers.reduce((result, header) => {
-    Object.entries(header).forEach(([key, value]) => {
-      if (!['title', 'key'].includes(key))
-        result[key] = value
-    })
-
-    return result
-  }, {})
-
-  return Object.keys(row).length > 0 ? [row] : []
-}
-
 const normalizedItems = computed(() => {
   if (Array.isArray(props.items))
     return props.items
@@ -104,12 +91,7 @@ const normalizedItems = computed(() => {
   return props.items ? [props.items] : []
 })
 
-const displayItems = computed(() => {
-  if (normalizedItems.value.length > 0)
-    return normalizedItems.value
-
-  return extractItemsFromHeaders(props.headers)
-})
+const displayItems = computed(() => normalizedItems.value)
 
 const resolvedHeaders = computed(() => {
   if (props.headers.length > 0)
@@ -169,6 +151,8 @@ const paginationMeta = computed(() => {
 
   return `${start}-${end} of ${filteredItems.value.length}`
 })
+
+const hasRows = computed(() => paginatedItems.value.length > 0)
 
 watch(search, () => {
   currentPage.value = 1
@@ -305,7 +289,7 @@ function getImageAlt(item, header) {
           </th>
 
           <th
-            v-if="showActions"
+            v-if="showActions && hasRows"
             class="text-center"
           >
             Actions
@@ -341,7 +325,7 @@ function getImageAlt(item, header) {
           </td>
 
           <td
-            v-if="showActions"
+            v-if="showActions && hasRows"
             class="text-center action-buttons"
           >
             <VBtn
@@ -378,10 +362,10 @@ function getImageAlt(item, header) {
 
         <tr v-if="paginatedItems.length === 0">
           <td
-            :colspan="resolvedHeaders.length + (showActions ? 1 : 0)"
+            :colspan="resolvedHeaders.length"
             class="empty-state text-center"
           >
-            No data found
+            No data
           </td>
         </tr>
       </tbody>
